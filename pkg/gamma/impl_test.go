@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/GoPolymarket/polymarket-go-sdk/pkg/transport"
+	"github.com/shopspring/decimal"
 )
 
 type staticDoer struct {
@@ -37,31 +38,31 @@ func (d *staticDoer) Do(req *http.Request) (*http.Response, error) {
 func TestGammaMethods(t *testing.T) {
 	doer := &staticDoer{
 		responses: map[string]string{
-			"/status":             `"OK"`,
-			"/teams":              `[]`,
-			"/sports":             `[]`,
-			"/sports/market-types": `{"sports":[]}`,
-			"/tags":               `[]`,
-			"/tags/1":             `{"id":"1","name":"tag1"}`,
-			"/tags/slug/tag-slug": `{"id":"1","name":"tag1"}`,
-			"/tags/1/related-tags": `[]`,
+			"/status":                          `"OK"`,
+			"/teams":                           `[]`,
+			"/sports":                          `[]`,
+			"/sports/market-types":             `{"sports":[]}`,
+			"/tags":                            `[]`,
+			"/tags/1":                          `{"id":"1","name":"tag1"}`,
+			"/tags/slug/tag-slug":              `{"id":"1","name":"tag1"}`,
+			"/tags/1/related-tags":             `[]`,
 			"/tags/slug/tag-slug/related-tags": `[]`,
-			"/tags/1/related-tags/tags": `[]`,
-			"/events":             `[]`,
-			"/events/1":           `{"id":"1","title":"event1"}`,
-			"/events/slug/slug1":  `{"id":"1","title":"event1"}`,
-			"/events/1/tags":      `[]`,
-			"/markets":            `[]`,
-			"/markets/1":          `{"id":"1","question":"market1"}`,
-			"/markets/slug/slug1": `{"id":"1","question":"market1"}`,
-			"/markets/1/tags":     `[]`,
-			"/series":             `[]`,
-			"/series/1":           `{"id":"1"}`,
-			"/comments":           `[]`,
-			"/comments/1":         `[]`,
-			"/comments/user_address/0x123": `[]`,
-			"/public-profile?address=0x123": `{"id":"1"}`,
-			"/public-search?q=test": `{"events":[],"markets":[]}`,
+			"/tags/1/related-tags/tags":        `[]`,
+			"/events":                          `[]`,
+			"/events/1":                        `{"id":"1","title":"event1"}`,
+			"/events/slug/slug1":               `{"id":"1","title":"event1"}`,
+			"/events/1/tags":                   `[]`,
+			"/markets":                         `[]`,
+			"/markets/1":                       `{"id":"1","question":"market1"}`,
+			"/markets/slug/slug1":              `{"id":"1","question":"market1"}`,
+			"/markets/1/tags":                  `[]`,
+			"/series":                          `[]`,
+			"/series/1":                        `{"id":"1"}`,
+			"/comments":                        `[]`,
+			"/comments/1":                      `[]`,
+			"/comments/user_address/0x123":     `[]`,
+			"/public-profile?address=0x123":    `{"id":"1"}`,
+			"/public-search?q=test":            `{"events":[],"markets":[]}`,
 		},
 	}
 	client := NewClient(transport.NewClient(doer, BaseURL))
@@ -169,7 +170,7 @@ func TestGammaMethods(t *testing.T) {
 		}
 		client := NewClient(transport.NewClient(doer, BaseURL))
 		limit := 1
-		
+
 		markets, _ := client.MarketsAll(ctx, &MarketsRequest{Limit: &limit})
 		if len(markets) != 1 {
 			t.Errorf("expected 1 market")
@@ -198,7 +199,7 @@ func TestMarket_NegRiskFields(t *testing.T) {
 		"negRiskMarketId": "0xneg",
 		"enableOrderBook": true,
 		"questionId": "0xq",
-		"volume24hr": "1000000",
+		"volume24hr": 1000000,
 		"spread": "0.02",
 		"bestBid": "0.48",
 		"bestAsk": "0.52",
@@ -220,11 +221,13 @@ func TestMarket_NegRiskFields(t *testing.T) {
 	if !m.EnableOrderBook {
 		t.Error("expected EnableOrderBook=true")
 	}
-	if m.Volume24hr != "1000000" {
-		t.Errorf("Volume24hr = %s, want 1000000", m.Volume24hr)
+	wantVol := decimal.NewFromInt(1000000)
+	if !m.Volume24hr.Equal(wantVol) {
+		t.Errorf("Volume24hr = %v, want %v", m.Volume24hr, wantVol)
 	}
-	if m.BestBid != "0.48" {
-		t.Errorf("BestBid = %s, want 0.48", m.BestBid)
+	wantBid := decimal.RequireFromString("0.48")
+	if !m.BestBid.Equal(wantBid) {
+		t.Errorf("BestBid = %v, want %v", m.BestBid, wantBid)
 	}
 	if m.CommentCount != 42 {
 		t.Errorf("CommentCount = %d, want 42", m.CommentCount)
