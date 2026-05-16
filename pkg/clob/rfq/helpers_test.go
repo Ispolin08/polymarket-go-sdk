@@ -5,8 +5,8 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/GoPolymarket/polymarket-go-sdk/pkg/clob/clobtypes"
-	"github.com/GoPolymarket/polymarket-go-sdk/pkg/types"
+	"github.com/GoPolymarket/polymarket-go-sdk/v2/pkg/clob/clobtypes"
+	"github.com/GoPolymarket/polymarket-go-sdk/v2/pkg/types"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/shopspring/decimal"
@@ -73,14 +73,11 @@ func TestBuildRFQAcceptRequestFromSignedOrder(t *testing.T) {
 			Salt:        types.U256{Int: big.NewInt(1)},
 			Maker:       common.HexToAddress("0x0000000000000000000000000000000000000001"),
 			Signer:      common.HexToAddress("0x0000000000000000000000000000000000000002"),
-			Taker:       common.HexToAddress("0x0000000000000000000000000000000000000000"),
 			TokenID:     types.U256{Int: big.NewInt(123)},
 			MakerAmount: decimal.NewFromInt(100),
 			TakerAmount: decimal.NewFromInt(50),
 			Side:        "BUY",
 			Expiration:  types.U256{Int: big.NewInt(0)},
-			FeeRateBps:  decimal.NewFromInt(0),
-			Nonce:       types.U256{Int: big.NewInt(10)},
 		},
 		Signature: "0xsig",
 		Owner:     "owner",
@@ -93,8 +90,8 @@ func TestBuildRFQAcceptRequestFromSignedOrder(t *testing.T) {
 	if req.RequestID != "req-1" || req.QuoteIDV2 != "quote-1" {
 		t.Fatalf("request/quote IDs mismatch")
 	}
-	if req.TokenID != "123" || req.Nonce != "10" {
-		t.Fatalf("order fields mismatch: token=%s nonce=%s", req.TokenID, req.Nonce)
+	if req.TokenID != "123" {
+		t.Fatalf("order fields mismatch: token=%s", req.TokenID)
 	}
 }
 
@@ -141,7 +138,6 @@ func TestBuildRFQAcceptRequest_NilTokenID(t *testing.T) {
 	signed := &clobtypes.SignedOrder{
 		Order: clobtypes.Order{
 			TokenID: types.U256{},
-			Nonce:   types.U256{Int: big.NewInt(1)},
 			Salt:    types.U256{Int: big.NewInt(1)},
 		},
 		Signature: "sig",
@@ -159,14 +155,11 @@ func TestBuildRFQAcceptRequest_NilExpiration(t *testing.T) {
 			Salt:        types.U256{Int: big.NewInt(1)},
 			Maker:       common.HexToAddress("0x0000000000000000000000000000000000000001"),
 			Signer:      common.HexToAddress("0x0000000000000000000000000000000000000002"),
-			Taker:       common.HexToAddress("0x0000000000000000000000000000000000000000"),
 			TokenID:     types.U256{Int: big.NewInt(123)},
 			MakerAmount: decimal.NewFromInt(100),
 			TakerAmount: decimal.NewFromInt(50),
 			Side:        "BUY",
 			Expiration:  types.U256{}, // nil Int
-			FeeRateBps:  decimal.NewFromInt(0),
-			Nonce:       types.U256{Int: big.NewInt(10)},
 		},
 		Signature: "0xsig",
 		Owner:     "owner",
@@ -186,14 +179,11 @@ func TestBuildRFQApproveQuoteFromSignedOrder(t *testing.T) {
 			Salt:        types.U256{Int: big.NewInt(1)},
 			Maker:       common.HexToAddress("0x0000000000000000000000000000000000000001"),
 			Signer:      common.HexToAddress("0x0000000000000000000000000000000000000002"),
-			Taker:       common.HexToAddress("0x0000000000000000000000000000000000000000"),
 			TokenID:     types.U256{Int: big.NewInt(123)},
 			MakerAmount: decimal.NewFromInt(100),
 			TakerAmount: decimal.NewFromInt(50),
 			Side:        "BUY",
 			Expiration:  types.U256{Int: big.NewInt(999)},
-			FeeRateBps:  decimal.NewFromInt(0),
-			Nonce:       types.U256{Int: big.NewInt(10)},
 		},
 		Signature: "0xsig",
 		Owner:     "owner",
@@ -241,19 +231,17 @@ func TestBuildRFQApproveQuote_EmptyOwner(t *testing.T) {
 	}
 }
 
-func TestBuildRFQApproveQuote_NilNonce(t *testing.T) {
+func TestBuildRFQApproveQuote_MissingTokenID(t *testing.T) {
 	signed := &clobtypes.SignedOrder{
 		Order: clobtypes.Order{
-			TokenID: types.U256{Int: big.NewInt(1)},
-			Nonce:   types.U256{},
-			Salt:    types.U256{Int: big.NewInt(1)},
+			Salt: types.U256{Int: big.NewInt(1)},
 		},
 		Signature: "sig",
 		Owner:     "owner",
 	}
 	_, err := BuildRFQApproveQuoteFromSignedOrder("r1", "q1", signed)
 	if err == nil {
-		t.Fatal("expected error for nil nonce")
+		t.Fatal("expected error for missing token ID")
 	}
 }
 
@@ -634,41 +622,38 @@ func TestApplyRFQFilters_AllFields(t *testing.T) {
 	if q.Get("state") != "active" {
 		t.Fatalf("expected active, got %s", q.Get("state"))
 	}
-	if q.Get("requestIds") != "r1,r2" {
-		t.Fatalf("expected r1,r2, got %s", q.Get("requestIds"))
+	if q.Get("request_ids") != "r1,r2" {
+		t.Fatalf("expected r1,r2, got %s", q.Get("request_ids"))
 	}
-	if q.Get("quoteIds") != "q1" {
-		t.Fatalf("expected q1, got %s", q.Get("quoteIds"))
+	if q.Get("quote_ids") != "q1" {
+		t.Fatalf("expected q1, got %s", q.Get("quote_ids"))
 	}
 	if q.Get("markets") != "m1,m2" {
 		t.Fatalf("expected m1,m2, got %s", q.Get("markets"))
 	}
-	if q.Get("sizeMin") != "1" {
-		t.Fatalf("expected 1, got %s", q.Get("sizeMin"))
-	}
 	if q.Get("size_min") != "1" {
 		t.Fatalf("expected 1, got %s", q.Get("size_min"))
 	}
-	if q.Get("sizeMax") != "100" {
-		t.Fatalf("expected 100, got %s", q.Get("sizeMax"))
+	if q.Get("size_max") != "100" {
+		t.Fatalf("expected 100, got %s", q.Get("size_max"))
 	}
-	if q.Get("sizeUsdcMin") != "10" {
-		t.Fatalf("expected 10, got %s", q.Get("sizeUsdcMin"))
+	if q.Get("size_usdc_min") != "10" {
+		t.Fatalf("expected 10, got %s", q.Get("size_usdc_min"))
 	}
-	if q.Get("sizeUsdcMax") != "1000" {
-		t.Fatalf("expected 1000, got %s", q.Get("sizeUsdcMax"))
+	if q.Get("size_usdc_max") != "1000" {
+		t.Fatalf("expected 1000, got %s", q.Get("size_usdc_max"))
 	}
-	if q.Get("priceMin") != "0.1" {
-		t.Fatalf("expected 0.1, got %s", q.Get("priceMin"))
+	if q.Get("price_min") != "0.1" {
+		t.Fatalf("expected 0.1, got %s", q.Get("price_min"))
 	}
-	if q.Get("priceMax") != "0.9" {
-		t.Fatalf("expected 0.9, got %s", q.Get("priceMax"))
+	if q.Get("price_max") != "0.9" {
+		t.Fatalf("expected 0.9, got %s", q.Get("price_max"))
 	}
-	if q.Get("sortBy") != "size" {
-		t.Fatalf("expected size, got %s", q.Get("sortBy"))
+	if q.Get("sort_by") != "size" {
+		t.Fatalf("expected size, got %s", q.Get("sort_by"))
 	}
-	if q.Get("sortDir") != "desc" {
-		t.Fatalf("expected desc, got %s", q.Get("sortDir"))
+	if q.Get("sort_dir") != "desc" {
+		t.Fatalf("expected desc, got %s", q.Get("sort_dir"))
 	}
 }
 

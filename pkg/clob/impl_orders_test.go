@@ -9,10 +9,10 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/shopspring/decimal"
 
-	"github.com/GoPolymarket/polymarket-go-sdk/pkg/auth"
-	"github.com/GoPolymarket/polymarket-go-sdk/pkg/clob/clobtypes"
-	"github.com/GoPolymarket/polymarket-go-sdk/pkg/transport"
-	"github.com/GoPolymarket/polymarket-go-sdk/pkg/types"
+	"github.com/GoPolymarket/polymarket-go-sdk/v2/pkg/auth"
+	"github.com/GoPolymarket/polymarket-go-sdk/v2/pkg/clob/clobtypes"
+	"github.com/GoPolymarket/polymarket-go-sdk/v2/pkg/transport"
+	"github.com/GoPolymarket/polymarket-go-sdk/v2/pkg/types"
 )
 
 func TestOrderManagementMethods(t *testing.T) {
@@ -42,53 +42,65 @@ func TestOrderManagementMethods(t *testing.T) {
 
 	t.Run("CancelAll", func(t *testing.T) {
 		doer := &staticDoer{
-			responses: map[string]string{"/cancel-all": `{"status":"OK","count":10}`},
+			responses: map[string]string{"/cancel-all": `{"canceled":["o1","o2"]}`},
 		}
 		client := &clientImpl{
 			httpClient: transport.NewClient(doer, "http://example"),
 		}
 		resp, err := client.CancelAll(ctx)
-		if err != nil || resp.Status != "OK" {
+		if err != nil {
 			t.Errorf("CancelAll failed: %v", err)
+		}
+		if len(resp.Canceled) != 2 {
+			t.Errorf("expected 2 canceled, got %d", len(resp.Canceled))
 		}
 	})
 
 	t.Run("CancelOrder", func(t *testing.T) {
 		doer := &staticDoer{
-			responses: map[string]string{"/order": `{"status":"OK"}`},
+			responses: map[string]string{"/order": `{"canceled":["o1"]}`},
 		}
 		client := &clientImpl{
 			httpClient: transport.NewClient(doer, "http://example"),
 		}
 		resp, err := client.CancelOrder(ctx, &clobtypes.CancelOrderRequest{OrderID: "o1"})
-		if err != nil || resp.Status != "OK" {
+		if err != nil {
 			t.Errorf("CancelOrder failed: %v", err)
+		}
+		if len(resp.Canceled) != 1 || resp.Canceled[0] != "o1" {
+			t.Errorf("expected canceled [o1], got %v", resp.Canceled)
 		}
 	})
 
 	t.Run("CancelOrders", func(t *testing.T) {
 		doer := &staticDoer{
-			responses: map[string]string{"/orders": `{"status":"OK"}`},
+			responses: map[string]string{"/orders": `{"canceled":["o1"]}`},
 		}
 		client := &clientImpl{
 			httpClient: transport.NewClient(doer, "http://example"),
 		}
 		resp, err := client.CancelOrders(ctx, &clobtypes.CancelOrdersRequest{OrderIDs: []string{"o1"}})
-		if err != nil || resp.Status != "OK" {
+		if err != nil {
 			t.Errorf("CancelOrders failed: %v", err)
+		}
+		if len(resp.Canceled) != 1 || resp.Canceled[0] != "o1" {
+			t.Errorf("expected canceled [o1], got %v", resp.Canceled)
 		}
 	})
 
 	t.Run("CancelMarketOrders", func(t *testing.T) {
 		doer := &staticDoer{
-			responses: map[string]string{"/cancel-market-orders": `{"status":"OK"}`},
+			responses: map[string]string{"/cancel-market-orders": `{"canceled":["o1"]}`},
 		}
 		client := &clientImpl{
 			httpClient: transport.NewClient(doer, "http://example"),
 		}
 		resp, err := client.CancelMarketOrders(ctx, &clobtypes.CancelMarketOrdersRequest{Market: "m1"})
-		if err != nil || resp.Status != "OK" {
+		if err != nil {
 			t.Errorf("CancelMarketOrders failed: %v", err)
+		}
+		if len(resp.Canceled) != 1 || resp.Canceled[0] != "o1" {
+			t.Errorf("expected canceled [o1], got %v", resp.Canceled)
 		}
 	})
 
@@ -129,8 +141,36 @@ func TestOrderManagementMethods(t *testing.T) {
 			httpClient: transport.NewClient(doer, "http://example"),
 		}
 		resp, err := client.Orders(ctx, nil)
-		if err != nil || len(resp.Data) == 0 {
-			t.Errorf("Orders list failed: %v", err)
+		if err != nil {
+			t.Fatalf("Orders list failed: %v", err)
+		}
+		if len(resp.Data) == 0 {
+			t.Fatal("Orders list returned no data")
+		}
+		if resp.Data[0].ID != "o1" {
+			t.Errorf("Orders list ID = %s, want o1", resp.Data[0].ID)
+		}
+	})
+
+	t.Run("OrdersListNumericCreatedAt", func(t *testing.T) {
+		doer := &staticDoer{
+			responses: map[string]string{"/data/orders": `{"data":[{"orderID":"o1","created_at":1700000000,"timestamp":1700000001}],"next_cursor":"LTE="}`},
+		}
+		client := &clientImpl{
+			httpClient: transport.NewClient(doer, "http://example"),
+		}
+		resp, err := client.Orders(ctx, nil)
+		if err != nil {
+			t.Fatalf("Orders list failed: %v", err)
+		}
+		if len(resp.Data) != 1 {
+			t.Fatalf("len(resp.Data) = %d, want 1", len(resp.Data))
+		}
+		if resp.Data[0].CreatedAt != "1700000000" {
+			t.Errorf("CreatedAt = %s, want 1700000000", resp.Data[0].CreatedAt)
+		}
+		if resp.Data[0].Timestamp != "1700000001" {
+			t.Errorf("Timestamp = %s, want 1700000001", resp.Data[0].Timestamp)
 		}
 	})
 
@@ -179,10 +219,7 @@ func TestSignOrderDefaults(t *testing.T) {
 		TokenID:     types.U256{Int: big.NewInt(1)},
 		MakerAmount: decimal.NewFromInt(10),
 		TakerAmount: decimal.NewFromInt(5),
-		FeeRateBps:  decimal.NewFromInt(0),
-		Nonce:       types.U256{Int: big.NewInt(1)},
 		Expiration:  types.U256{Int: big.NewInt(0)},
-		Taker:       common.Address{},
 		Signer:      signer.Address(),
 	}
 

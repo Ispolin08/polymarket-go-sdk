@@ -10,11 +10,11 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 
-	polymarket "github.com/GoPolymarket/polymarket-go-sdk"
-	"github.com/GoPolymarket/polymarket-go-sdk/pkg/auth"
-	"github.com/GoPolymarket/polymarket-go-sdk/pkg/clob"
-	"github.com/GoPolymarket/polymarket-go-sdk/pkg/clob/clobtypes"
-	"github.com/GoPolymarket/polymarket-go-sdk/pkg/types"
+	polymarket "github.com/GoPolymarket/polymarket-go-sdk/v2"
+	"github.com/GoPolymarket/polymarket-go-sdk/v2/pkg/auth"
+	"github.com/GoPolymarket/polymarket-go-sdk/v2/pkg/clob"
+	"github.com/GoPolymarket/polymarket-go-sdk/v2/pkg/clob/clobtypes"
+	"github.com/GoPolymarket/polymarket-go-sdk/v2/pkg/types"
 )
 
 func main() {
@@ -53,7 +53,6 @@ func main() {
 		Price(0.5).
 		Size(10).
 		TickSize(0.01).
-		FeeRateBps(0).
 		BuildSignableWithContext(ctx)
 	if err != nil {
 		log.Fatalf("BuildSignable failed: %v", err)
@@ -75,16 +74,16 @@ func main() {
 	order := &clobtypes.Order{
 		Maker:         signable.Order.Maker,
 		Signer:        signer.Address(),
-		Taker:         common.Address{},
 		TokenID:       types.U256{Int: big.NewInt(123456)},
 		MakerAmount:   signable.Order.MakerAmount,
 		TakerAmount:   signable.Order.TakerAmount,
 		Expiration:    signable.Order.Expiration,
-		Nonce:         signable.Order.Nonce,
-		FeeRateBps:    signable.Order.FeeRateBps,
 		Side:          signable.Order.Side,
 		SignatureType: signable.Order.SignatureType,
 		Salt:          signable.Order.Salt,
+		Timestamp:     signable.Order.Timestamp,
+		Metadata:      signable.Order.Metadata,
+		Builder:       signable.Order.Builder,
 	}
 	fmt.Printf("Order side: %s, maker=%s\n", order.Side, order.Maker.String())
 }

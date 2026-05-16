@@ -1,7 +1,7 @@
 package clob
 
 import (
-	"github.com/GoPolymarket/polymarket-go-sdk/pkg/clob/clobtypes"
+	"github.com/GoPolymarket/polymarket-go-sdk/v2/pkg/clob/clobtypes"
 	"math/big"
 	"strings"
 	"testing"
@@ -9,7 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/shopspring/decimal"
 
-	"github.com/GoPolymarket/polymarket-go-sdk/pkg/types"
+	"github.com/GoPolymarket/polymarket-go-sdk/v2/pkg/types"
 )
 
 func TestBuildOrderPayloadCasingAndOptions(t *testing.T) {
@@ -19,14 +19,11 @@ func TestBuildOrderPayloadCasingAndOptions(t *testing.T) {
 			Salt:          types.U256{Int: big.NewInt(1)},
 			Maker:         common.HexToAddress("0x0000000000000000000000000000000000000001"),
 			Signer:        common.HexToAddress("0x0000000000000000000000000000000000000002"),
-			Taker:         common.HexToAddress("0x0000000000000000000000000000000000000000"),
 			TokenID:       types.U256{Int: big.NewInt(123)},
 			MakerAmount:   decimal.NewFromInt(100),
 			TakerAmount:   decimal.NewFromInt(50),
 			Side:          "BUY",
 			Expiration:    types.U256{Int: big.NewInt(0)},
-			FeeRateBps:    decimal.NewFromInt(0),
-			Nonce:         types.U256{Int: big.NewInt(0)},
 			SignatureType: &sigType,
 		},
 		Signature: "0xsig",
@@ -69,14 +66,11 @@ func TestBuildOrderPayloadPostOnlyValidation(t *testing.T) {
 			Salt:          types.U256{Int: big.NewInt(1)},
 			Maker:         common.HexToAddress("0x0000000000000000000000000000000000000001"),
 			Signer:        common.HexToAddress("0x0000000000000000000000000000000000000002"),
-			Taker:         common.HexToAddress("0x0000000000000000000000000000000000000000"),
 			TokenID:       types.U256{Int: big.NewInt(123)},
 			MakerAmount:   decimal.NewFromInt(100),
 			TakerAmount:   decimal.NewFromInt(50),
 			Side:          "BUY",
 			Expiration:    types.U256{Int: big.NewInt(0)},
-			FeeRateBps:    decimal.NewFromInt(0),
-			Nonce:         types.U256{Int: big.NewInt(0)},
 			SignatureType: &sigType,
 		},
 		Signature: "0xsig",
@@ -97,14 +91,11 @@ func TestBuildOrderPayloadRequiresSignatureAndOwner(t *testing.T) {
 			Salt:        types.U256{Int: big.NewInt(1)},
 			Maker:       common.HexToAddress("0x0000000000000000000000000000000000000001"),
 			Signer:      common.HexToAddress("0x0000000000000000000000000000000000000002"),
-			Taker:       common.HexToAddress("0x0000000000000000000000000000000000000000"),
 			TokenID:     types.U256{Int: big.NewInt(123)},
 			MakerAmount: decimal.NewFromInt(100),
 			TakerAmount: decimal.NewFromInt(50),
 			Side:        "BUY",
 			Expiration:  types.U256{Int: big.NewInt(0)},
-			FeeRateBps:  decimal.NewFromInt(0),
-			Nonce:       types.U256{Int: big.NewInt(0)},
 		},
 	}
 

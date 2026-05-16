@@ -3,8 +3,10 @@ package clobtypes
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
+	"strconv"
 
-	"github.com/GoPolymarket/polymarket-go-sdk/pkg/types"
+	"github.com/GoPolymarket/polymarket-go-sdk/v2/pkg/types"
 )
 
 // OrderType represents time-in-force / order type values.
@@ -37,6 +39,8 @@ const (
 	MaxPostOrdersBatchSize = 15
 	// MaxCancelOrdersBatchSize is the maximum number of order IDs allowed in a single CancelOrders request.
 	MaxCancelOrdersBatchSize = 3000
+	// MaxLastTradesPricesQuerySize is the maximum number of token IDs allowed in a single LastTradesPricesQuery request.
+	MaxLastTradesPricesQuerySize = 500
 )
 
 // Request types.
@@ -89,6 +93,9 @@ type (
 		TokenID string `json:"token_id"`
 	}
 	LastTradesPricesRequest struct {
+		TokenIDs []string `json:"token_ids"`
+	}
+	LastTradesPricesQueryRequest struct {
 		TokenIDs []string `json:"token_ids"`
 	}
 	TickSizeRequest struct {
@@ -311,7 +318,7 @@ type (
 		NegRisk bool `json:"neg_risk"`
 	}
 	FeeRateResponse struct {
-		BaseFee int    `json:"base_fee,omitempty"`
+		BaseFee int64  `json:"base_fee,omitempty"`
 		FeeRate string `json:"fee_rate,omitempty"`
 	}
 	GeoblockResponse struct {
@@ -334,7 +341,7 @@ type (
 		MakerAddress string `json:"maker_address,omitempty"`
 		OrderType    string `json:"order_type,omitempty"`
 		Expiration   string `json:"expiration,omitempty"`
-		CreatedAt    int    `json:"created_at,omitempty"`
+		CreatedAt    int `json:"created_at,omitempty"`
 		Timestamp    string `json:"timestamp,omitempty"`
 		Outcome      string `json:"outcome,omitempty"`
 	}
@@ -365,14 +372,16 @@ type (
 		Count      int                    `json:"count"`
 	}
 	CancelResponse struct {
-		Status string `json:"status"`
+		Canceled    []string          `json:"canceled,omitempty"`
+		NotCanceled map[string]string `json:"not_canceled,omitempty"`
 	}
 	CancelAllResponse struct {
-		Status string `json:"status"`
-		Count  int    `json:"count"`
+		Canceled    []string          `json:"canceled,omitempty"`
+		NotCanceled map[string]string `json:"not_canceled,omitempty"`
 	}
 	CancelMarketOrdersResponse struct {
-		Status string `json:"status"`
+		Canceled    []string          `json:"canceled,omitempty"`
+		NotCanceled map[string]string `json:"not_canceled,omitempty"`
 	}
 	TradesResponse struct {
 		Data       []Trade `json:"data"`
@@ -444,16 +453,22 @@ type (
 // Auxiliary types.
 type (
 	Market struct {
-		ID          string        `json:"id"`
-		Question    string        `json:"question"`
-		ConditionID string        `json:"condition_id"`
-		Slug        string        `json:"slug"`
-		Resolution  string        `json:"resolution"`
-		EndDate     string        `json:"end_date"`
-		Tokens      []MarketToken `json:"tokens"`
-		// Add minimal fields to match "Simplified" or "Active"
-		Active bool `json:"active"`
-		Closed bool `json:"closed"`
+		ID             string        `json:"id"`
+		Question       string        `json:"question"`
+		ConditionID    string        `json:"condition_id"`
+		Slug           string        `json:"slug"`
+		Resolution     string        `json:"resolution"`
+		EndDate        string        `json:"end_date"`
+		Tokens         []MarketToken `json:"tokens"`
+		Active         bool          `json:"active"`
+		Closed         bool          `json:"closed"`
+		Volume         string        `json:"volume,omitempty"`
+		Liquidity      string        `json:"liquidity,omitempty"`
+		Volume24hr     string        `json:"volume24hr,omitempty"`
+		Spread         string        `json:"spread,omitempty"`
+		BestBid        string        `json:"bestBid,omitempty"`
+		BestAsk        string        `json:"bestAsk,omitempty"`
+		LastTradePrice string        `json:"lastTradePrice,omitempty"`
 	}
 
 	MarketToken struct {
@@ -463,10 +478,16 @@ type (
 	}
 
 	OrderBook struct {
-		MarketID string       `json:"market_id"`
-		Bids     []PriceLevel `json:"bids"`
-		Asks     []PriceLevel `json:"asks"`
-		Hash     string       `json:"hash"`
+		Market         string       `json:"market"`
+		AssetID        string       `json:"asset_id"`
+		Timestamp      string       `json:"timestamp"`
+		Hash           string       `json:"hash"`
+		Bids           []PriceLevel `json:"bids"`
+		Asks           []PriceLevel `json:"asks"`
+		MinOrderSize   string       `json:"min_order_size"`
+		TickSize       string       `json:"tick_size"`
+		NegRisk        bool         `json:"neg_risk"`
+		LastTradePrice string       `json:"last_trade_price"`
 	}
 
 	PriceLevel struct {
@@ -474,20 +495,23 @@ type (
 		Size  string `json:"size"`
 	}
 
+	// Order represents a signed order. Note: JSON tags are for internal serialization only.
+	// The API wire format uses camelCase keys (salt, maker, signer, tokenId, makerAmount,
+	// takerAmount, expiration, side, signatureType, timestamp, metadata, builder).
+	// Expiration is transmitted to the API but NOT part of the EIP-712 signed payload.
 	Order struct {
-		// Define order fields
 		Salt          types.U256    `json:"salt"`
 		Signer        types.Address `json:"signer"`
 		Maker         types.Address `json:"maker"`
-		Taker         types.Address `json:"taker"`
 		TokenID       types.U256    `json:"token_id"`
 		MakerAmount   types.Decimal `json:"maker_amount"`
 		TakerAmount   types.Decimal `json:"taker_amount"`
 		Expiration    types.U256    `json:"expiration"`
-		Side          string        `json:"side"` // BUY/SELL
-		FeeRateBps    types.Decimal `json:"fee_rate_bps"`
-		Nonce         types.U256    `json:"nonce"`
-		SignatureType *int          `json:"signature_type,omitempty"` // 0=EOA, 1=Proxy, 2=Safe
+		Side          string        `json:"side"`                       // BUY/SELL
+		SignatureType *int          `json:"signature_type,omitempty"`   // 0=EOA, 1=Proxy, 2=Safe, 3=Poly1271
+		Timestamp     int64         `json:"timestamp,omitempty"`        // ms since epoch
+		Metadata      string        `json:"metadata,omitempty"`         // 0x-prefixed bytes32 hex
+		Builder       string        `json:"builder,omitempty"`          // 0x-prefixed bytes32 hex builder code
 	}
 
 	PriceHistoryPoint struct {
@@ -545,26 +569,26 @@ type (
 	}
 
 	Earning struct {
-		AssetAddress string `json:"asset_address"`
-		Earnings     string `json:"earnings"`
-		AssetRate    string `json:"asset_rate"`
+		AssetAddress string        `json:"asset_address"`
+		Earnings     EarningsFloat `json:"earnings"`
+		AssetRate    EarningsFloat `json:"asset_rate"`
 	}
 
 	UserEarning struct {
-		Date         string `json:"date"`
-		ConditionID  string `json:"condition_id"`
-		AssetAddress string `json:"asset_address"`
-		MakerAddress string `json:"maker_address"`
-		Earnings     string `json:"earnings"`
-		AssetRate    string `json:"asset_rate"`
+		Date         string        `json:"date"`
+		ConditionID  string        `json:"condition_id"`
+		AssetAddress string        `json:"asset_address"`
+		MakerAddress string        `json:"maker_address"`
+		Earnings     EarningsFloat `json:"earnings"`
+		AssetRate    EarningsFloat `json:"asset_rate"`
 	}
 
 	TotalUserEarning struct {
-		Date         string `json:"date"`
-		AssetAddress string `json:"asset_address"`
-		MakerAddress string `json:"maker_address"`
-		Earnings     string `json:"earnings"`
-		AssetRate    string `json:"asset_rate"`
+		Date         string        `json:"date"`
+		AssetAddress string        `json:"asset_address"`
+		MakerAddress string        `json:"maker_address"`
+		Earnings     EarningsFloat `json:"earnings"`
+		AssetRate    EarningsFloat `json:"asset_rate"`
 	}
 
 	UserRewardsEarning struct {
@@ -604,7 +628,21 @@ type (
 	}
 
 	TradeEvent struct {
-		// ...
+		ID              string `json:"id,omitempty"`
+		AssetID         string `json:"asset_id"`
+		Market          string `json:"market,omitempty"`
+		Price           string `json:"price"`
+		Size            string `json:"size"`
+		Side            string `json:"side"`
+		Status          string `json:"status,omitempty"`
+		Timestamp       string `json:"timestamp"`
+		TakerOrderID    string `json:"taker_order_id,omitempty"`
+		MakerOrderID    string `json:"maker_order_id,omitempty"`
+		Owner           string `json:"owner,omitempty"`
+		MakerAddress    string `json:"maker_address,omitempty"`
+		FeeRateBps      string `json:"fee_rate_bps,omitempty"`
+		TransactionHash string `json:"transaction_hash,omitempty"`
+		MatchTime       string `json:"match_time,omitempty"`
 	}
 
 	APIKeyInfo struct {
@@ -612,6 +650,51 @@ type (
 		Type   string `json:"type"`
 	}
 )
+
+// EarningsFloat handles earnings values that may be either a JSON number or string.
+type EarningsFloat float64
+
+func (e *EarningsFloat) UnmarshalJSON(data []byte) error {
+	trimmed := bytes.TrimSpace(data)
+	if len(trimmed) == 0 || bytes.Equal(trimmed, []byte("null")) {
+		return nil
+	}
+	var f float64
+	if err := json.Unmarshal(trimmed, &f); err == nil {
+		*e = EarningsFloat(f)
+		return nil
+	}
+	var s string
+	if err := json.Unmarshal(trimmed, &s); err != nil {
+		return err
+	}
+	parsed, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		return fmt.Errorf("invalid earnings value %q: %w", s, err)
+	}
+	*e = EarningsFloat(parsed)
+	return nil
+}
+
+// TimeResponseUnmarshalJSON handles both plain integer (V1) and object (V2) time responses.
+func (t *TimeResponse) UnmarshalJSON(data []byte) error {
+	trimmed := bytes.TrimSpace(data)
+	if len(trimmed) == 0 || bytes.Equal(trimmed, []byte("null")) {
+		return nil
+	}
+	var ts int64
+	if err := json.Unmarshal(trimmed, &ts); err == nil {
+		t.Timestamp = ts
+		return nil
+	}
+	type timeResponseAlias TimeResponse
+	var alias timeResponseAlias
+	if err := json.Unmarshal(trimmed, &alias); err != nil {
+		return err
+	}
+	*t = TimeResponse(alias)
+	return nil
+}
 
 // PricesHistoryResponse supports both legacy array responses and the current
 // object-wrapped form returned by the API (e.g. {"history":[...]}).
@@ -645,4 +728,139 @@ func (p *PricesHistoryResponse) UnmarshalJSON(data []byte) error {
 	}
 	*p = nil
 	return nil
+}
+
+// OrderResponse supports both `orderID` and `id`, and accepts either JSON
+// strings or numbers for time-like fields returned by the upstream API.
+func (o *OrderResponse) UnmarshalJSON(data []byte) error {
+	trimmed := bytes.TrimSpace(data)
+	if len(trimmed) == 0 || bytes.Equal(trimmed, []byte("null")) {
+		return nil
+	}
+
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(trimmed, &raw); err != nil {
+		return err
+	}
+
+	next := *o
+
+	if value, ok := raw["orderID"]; ok {
+		if err := unmarshalOrderResponseString(value, &next.ID); err != nil {
+			return fmt.Errorf("orderID: %w", err)
+		}
+	} else if value, ok := raw["id"]; ok {
+		if err := unmarshalOrderResponseString(value, &next.ID); err != nil {
+			return fmt.Errorf("id: %w", err)
+		}
+	}
+	if value, ok := raw["status"]; ok {
+		if err := unmarshalOrderResponseString(value, &next.Status); err != nil {
+			return fmt.Errorf("status: %w", err)
+		}
+	}
+	if value, ok := raw["asset_id"]; ok {
+		if err := unmarshalOrderResponseString(value, &next.AssetID); err != nil {
+			return fmt.Errorf("asset_id: %w", err)
+		}
+	}
+	if value, ok := raw["market"]; ok {
+		if err := unmarshalOrderResponseString(value, &next.Market); err != nil {
+			return fmt.Errorf("market: %w", err)
+		}
+	}
+	if value, ok := raw["side"]; ok {
+		if err := unmarshalOrderResponseString(value, &next.Side); err != nil {
+			return fmt.Errorf("side: %w", err)
+		}
+	}
+	if value, ok := raw["price"]; ok {
+		if err := unmarshalOrderResponseString(value, &next.Price); err != nil {
+			return fmt.Errorf("price: %w", err)
+		}
+	}
+	if value, ok := raw["original_size"]; ok {
+		if err := unmarshalOrderResponseString(value, &next.OriginalSize); err != nil {
+			return fmt.Errorf("original_size: %w", err)
+		}
+	}
+	if value, ok := raw["size_matched"]; ok {
+		if err := unmarshalOrderResponseString(value, &next.SizeMatched); err != nil {
+			return fmt.Errorf("size_matched: %w", err)
+		}
+	}
+	if value, ok := raw["owner"]; ok {
+		if err := unmarshalOrderResponseString(value, &next.Owner); err != nil {
+			return fmt.Errorf("owner: %w", err)
+		}
+	}
+	if value, ok := raw["maker_address"]; ok {
+		if err := unmarshalOrderResponseString(value, &next.MakerAddress); err != nil {
+			return fmt.Errorf("maker_address: %w", err)
+		}
+	}
+	if value, ok := raw["order_type"]; ok {
+		if err := unmarshalOrderResponseString(value, &next.OrderType); err != nil {
+			return fmt.Errorf("order_type: %w", err)
+		}
+	}
+	if value, ok := raw["expiration"]; ok {
+		if err := unmarshalOrderResponseStringLike(value, &next.Expiration); err != nil {
+			return fmt.Errorf("expiration: %w", err)
+		}
+	}
+	if value, ok := raw["created_at"]; ok {
+		if err := unmarshalOrderResponseStringLike(value, &next.CreatedAt); err != nil {
+			return fmt.Errorf("created_at: %w", err)
+		}
+	}
+	if value, ok := raw["timestamp"]; ok {
+		if err := unmarshalOrderResponseStringLike(value, &next.Timestamp); err != nil {
+			return fmt.Errorf("timestamp: %w", err)
+		}
+	}
+	if value, ok := raw["outcome"]; ok {
+		if err := unmarshalOrderResponseString(value, &next.Outcome); err != nil {
+			return fmt.Errorf("outcome: %w", err)
+		}
+	}
+
+	*o = next
+	return nil
+}
+
+func unmarshalOrderResponseString(data json.RawMessage, dest *string) error {
+	trimmed := bytes.TrimSpace(data)
+	if len(trimmed) == 0 || bytes.Equal(trimmed, []byte("null")) {
+		return nil
+	}
+
+	var value string
+	if err := json.Unmarshal(trimmed, &value); err != nil {
+		return err
+	}
+
+	*dest = value
+	return nil
+}
+
+func unmarshalOrderResponseStringLike(data json.RawMessage, dest *string) error {
+	trimmed := bytes.TrimSpace(data)
+	if len(trimmed) == 0 || bytes.Equal(trimmed, []byte("null")) {
+		return nil
+	}
+
+	var value string
+	if err := json.Unmarshal(trimmed, &value); err == nil {
+		*dest = value
+		return nil
+	}
+
+	var number json.Number
+	if err := json.Unmarshal(trimmed, &number); err == nil {
+		*dest = number.String()
+		return nil
+	}
+
+	return fmt.Errorf("expected string or number, got %s", string(trimmed))
 }

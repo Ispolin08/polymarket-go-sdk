@@ -18,7 +18,7 @@ import (
 	"strings"
 	"time"
 
-	sdkerrors "github.com/GoPolymarket/polymarket-go-sdk/pkg/errors"
+	sdkerrors "github.com/GoPolymarket/polymarket-go-sdk/v2/pkg/errors"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/common/math"
@@ -78,6 +78,8 @@ const (
 	SignatureProxy SignatureType = 1
 	// SignatureGnosisSafe indicates a signature from a Gnosis Safe multisig.
 	SignatureGnosisSafe SignatureType = 2
+	// SignaturePoly1271 indicates an EIP-1271 compatible smart-contract wallet.
+	SignaturePoly1271 SignatureType = 3
 )
 
 // Supported chain IDs for Polymarket operations.
@@ -390,7 +392,7 @@ func buildBuilderHeadersRemote(ctx context.Context, remote *BuilderRemoteConfig,
 
 	client := remote.HTTPClient
 	if client == nil {
-		client = http.DefaultClient
+		client = &http.Client{Timeout: 10 * time.Second}
 	}
 	resp, err := client.Do(req)
 	if err != nil {

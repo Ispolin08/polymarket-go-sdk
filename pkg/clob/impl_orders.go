@@ -8,9 +8,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/GoPolymarket/polymarket-go-sdk/pkg/auth"
-	"github.com/GoPolymarket/polymarket-go-sdk/pkg/clob/clobtypes"
-	"github.com/GoPolymarket/polymarket-go-sdk/pkg/types"
+	"github.com/GoPolymarket/polymarket-go-sdk/v2/pkg/auth"
+	"github.com/GoPolymarket/polymarket-go-sdk/v2/pkg/clob/clobtypes"
+	"github.com/GoPolymarket/polymarket-go-sdk/v2/pkg/types"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/common/math"
@@ -67,6 +67,21 @@ func signOrderWithCreds(signer auth.Signer, apiKey *auth.APIKey, order *clobtype
 		return nil, fmt.Errorf("order is required")
 	}
 
+	side := strings.ToUpper(strings.TrimSpace(order.Side))
+	if side != "BUY" && side != "SELL" {
+		return nil, fmt.Errorf("order side must be BUY or SELL, got %q", order.Side)
+	}
+	order.Side = side
+	if order.TokenID.Int == nil || order.TokenID.Int.Sign() == 0 {
+		return nil, fmt.Errorf("token_id is required and must be non-zero")
+	}
+	if order.MakerAmount.BigInt() == nil || order.MakerAmount.BigInt().Sign() <= 0 {
+		return nil, fmt.Errorf("maker_amount must be positive")
+	}
+	if order.TakerAmount.BigInt() == nil || order.TakerAmount.BigInt().Sign() <= 0 {
+		return nil, fmt.Errorf("taker_amount must be positive")
+	}
+
 	sigTypeVal := int(auth.SignatureEOA)
 	if order.SignatureType != nil {
 		sigTypeVal = *order.SignatureType
@@ -94,11 +109,15 @@ func signOrderWithCreds(signer auth.Signer, apiKey *auth.APIKey, order *clobtype
 		}
 	}
 
+	if order.Maker == (types.Address{}) {
+		return nil, fmt.Errorf("maker address cannot be zero; ensure signer is properly initialized")
+	}
+
 	domain := &apitypes.TypedDataDomain{
 		Name:              "Polymarket CTF Exchange",
-		Version:           "1",
+		Version:           "2",
 		ChainId:           (*math.HexOrDecimal256)(signer.ChainID()),
-		VerifyingContract: "0x4bFb41d5B3570DeFd03C39a9A4D8dE6Bd8B8982E", // Exchange Contract Address (Mainnet)
+		VerifyingContract: "0xE111180000d2663C0091e4f400237545B87B996B", // V2 CTF Exchange (Mainnet)
 	}
 
 	typesDef := apitypes.Types{
@@ -112,20 +131,19 @@ func signOrderWithCreds(signer auth.Signer, apiKey *auth.APIKey, order *clobtype
 			{Name: "salt", Type: "uint256"},
 			{Name: "maker", Type: "address"},
 			{Name: "signer", Type: "address"},
-			{Name: "taker", Type: "address"},
 			{Name: "tokenId", Type: "uint256"},
 			{Name: "makerAmount", Type: "uint256"},
 			{Name: "takerAmount", Type: "uint256"},
-			{Name: "expiration", Type: "uint256"},
-			{Name: "nonce", Type: "uint256"},
-			{Name: "feeRateBps", Type: "uint256"},
 			{Name: "side", Type: "uint8"},
 			{Name: "signatureType", Type: "uint8"},
+			{Name: "timestamp", Type: "uint256"},
+			{Name: "metadata", Type: "bytes32"},
+			{Name: "builder", Type: "bytes32"},
 		},
 	}
 
 	sideInt := 0
-	if strings.ToUpper(order.Side) == "SELL" {
+	if side == "SELL" {
 		sideInt = 1
 	}
 
@@ -143,24 +161,20 @@ func signOrderWithCreds(signer auth.Signer, apiKey *auth.APIKey, order *clobtype
 		order.Salt = types.U256{Int: salt}
 	}
 
-	expiration := big.NewInt(0)
-	if order.Expiration.Int != nil {
-		expiration = order.Expiration.Int
-	}
+	timestamp := order.Timestamp
 
 	message := apitypes.TypedDataMessage{
 		"salt":          (*math.HexOrDecimal256)(order.Salt.Int),
 		"maker":         order.Maker.String(),
 		"signer":        signer.Address().String(),
-		"taker":         order.Taker.String(),
 		"tokenId":       (*math.HexOrDecimal256)(order.TokenID.Int),
 		"makerAmount":   (*math.HexOrDecimal256)(order.MakerAmount.BigInt()),
 		"takerAmount":   (*math.HexOrDecimal256)(order.TakerAmount.BigInt()),
-		"expiration":    (*math.HexOrDecimal256)(expiration),
-		"nonce":         (*math.HexOrDecimal256)(order.Nonce.Int),
-		"feeRateBps":    (*math.HexOrDecimal256)(order.FeeRateBps.BigInt()),
 		"side":          (*math.HexOrDecimal256)(big.NewInt(int64(sideInt))),
 		"signatureType": (*math.HexOrDecimal256)(big.NewInt(int64(sigTypeVal))),
+		"timestamp":     (*math.HexOrDecimal256)(big.NewInt(timestamp)),
+		"metadata":      padBytes32(order.Metadata),
+		"builder":       padBytes32(order.Builder),
 	}
 
 	sig, err := signer.SignTypedData(domain, typesDef, message, "Order")

@@ -17,14 +17,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/GoPolymarket/polymarket-go-sdk/pkg/auth"
-	"github.com/GoPolymarket/polymarket-go-sdk/pkg/types"
+	"github.com/GoPolymarket/polymarket-go-sdk/v2/pkg/auth"
+	"github.com/GoPolymarket/polymarket-go-sdk/v2/pkg/types"
 )
 
 const (
-	defaultMaxRetries = 3
-	defaultMinWait    = 100 * time.Millisecond
-	defaultMaxWait    = 2 * time.Second
+	defaultMaxRetries  = 3
+	defaultMinWait     = 100 * time.Millisecond
+	defaultMaxWait     = 2 * time.Second
+	defaultHTTPTimeout = 30 * time.Second
 )
 
 // Doer defines the interface for executing an HTTP request.
@@ -49,10 +50,10 @@ type Client struct {
 }
 
 // NewClient creates a new transport client.
-// If httpClient is nil, http.DefaultClient will be used.
+// If httpClient is nil, a timeout-bounded default client will be used.
 func NewClient(httpClient Doer, baseURL string) *Client {
 	if httpClient == nil {
-		httpClient = http.DefaultClient
+		httpClient = &http.Client{Timeout: defaultHTTPTimeout}
 	}
 	// Ensure base URL doesn't have a trailing slash for consistency
 	baseURL = strings.TrimRight(baseURL, "/")
@@ -60,7 +61,7 @@ func NewClient(httpClient Doer, baseURL string) *Client {
 	return &Client{
 		httpClient: httpClient,
 		baseURL:    baseURL,
-		userAgent:  "github.com/GoPolymarket/polymarket-go-sdk/1.0",
+		userAgent:  "github.com/GoPolymarket/polymarket-go-sdk/v2/2.0",
 	}
 }
 

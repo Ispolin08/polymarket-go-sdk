@@ -9,9 +9,9 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/GoPolymarket/polymarket-go-sdk/pkg/clob/ws"
-	"github.com/GoPolymarket/polymarket-go-sdk/pkg/gamma"
-	"github.com/GoPolymarket/polymarket-go-sdk/pkg/transport"
+	"github.com/GoPolymarket/polymarket-go-sdk/v2/pkg/clob/ws"
+	"github.com/GoPolymarket/polymarket-go-sdk/v2/pkg/gamma"
+	"github.com/GoPolymarket/polymarket-go-sdk/v2/pkg/transport"
 )
 
 func main() {
@@ -40,7 +40,7 @@ func main() {
 
 	fmt.Printf("Found %d markets\n", len(markets))
 	for i, m := range markets {
-		fmt.Printf("[%d] Question: %s, Volume: %s, Closed: %v\n", i, m.Question, m.Volume, m.Closed)
+		fmt.Printf("[%d] Question: %s, Volume: %s, Closed: %v\n", i, m.Question, m.Volume.String(), m.Closed)
 	}
 
 	// Extract a token ID (Asset ID)
@@ -49,7 +49,7 @@ func main() {
 
 	for _, m := range markets {
 		// Skip low volume markets to ensure we get some WS events
-		if m.Volume == "0" || m.Volume == "" {
+		if m.Volume.IsZero() {
 			continue
 		}
 

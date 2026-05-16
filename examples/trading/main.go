@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/GoPolymarket/polymarket-go-sdk/pkg/clob/clobtypes"
+	"github.com/GoPolymarket/polymarket-go-sdk/v2/pkg/clob/clobtypes"
 	"context"
 	"fmt"
 	"log"
@@ -9,14 +9,13 @@ import (
 	"os"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/shopspring/decimal"
 
-	polymarket "github.com/GoPolymarket/polymarket-go-sdk"
-	"github.com/GoPolymarket/polymarket-go-sdk/pkg/auth"
+	polymarket "github.com/GoPolymarket/polymarket-go-sdk/v2"
+	"github.com/GoPolymarket/polymarket-go-sdk/v2/pkg/auth"
 	
-"github.com/GoPolymarket/polymarket-go-sdk/pkg/types"
+"github.com/GoPolymarket/polymarket-go-sdk/v2/pkg/types"
 )
 
 func main() {
@@ -35,31 +34,43 @@ func main() {
 		log.Fatalf("Failed to create signer: %v", err)
 	}
 
+	// 2. Initialize Client
+	client := polymarket.NewClient()
+
+	ctx := context.Background()
+
+	// 3. Obtain API credentials: env vars first, then derive via L1 signature
 	apiKey := &auth.APIKey{
 		Key:        os.Getenv("POLYMARKET_API_KEY"),
 		Secret:     os.Getenv("POLYMARKET_API_SECRET"),
 		Passphrase: os.Getenv("POLYMARKET_API_PASSPHRASE"),
 	}
+	if apiKey.Key == "" || apiKey.Secret == "" || apiKey.Passphrase == "" {
+		log.Println("No L2 API key provided, deriving via L1 signature...")
+		l1Client := client.CLOB.WithAuth(signer, nil)
+		resp, err := l1Client.DeriveAPIKey(ctx)
+		if err != nil {
+			log.Fatalf("DeriveAPIKey failed: %v", err)
+		}
+		apiKey = &auth.APIKey{
+			Key:        resp.APIKey,
+			Secret:     resp.Secret,
+			Passphrase: resp.Passphrase,
+		}
+	}
 
-	// 2. Initialize Client
-	client := polymarket.NewClient()
-
-	// 3. Create Authenticated CLOB Client
+	// 4. Create Authenticated CLOB Client
 	authClient := client.CLOB.WithAuth(signer, apiKey)
 
-	ctx := context.Background()
-
-	// 4. Create an Order (Example)
+	// 5. Create an Order (Example)
 	// Note: This requires valid TokenID and sufficient balance/allowance to succeed on server
 	order := &clobtypes.Order{
 		Maker:       types.Address(signer.Address()),
-		Taker:       common.HexToAddress("0x0000000000000000000000000000000000000000"), // Open order
-		TokenID:     types.U256{Int: big.NewInt(123456789)},                            // Dummy Token ID
+		TokenID:     types.U256{Int: big.NewInt(123456789)}, // Dummy Token ID
 		MakerAmount: decimal.NewFromFloat(10.0),
 		TakerAmount: decimal.NewFromFloat(5.0),
 		Side:        "BUY",
-		FeeRateBps:  decimal.NewFromInt(0),
-		Nonce:       types.U256{Int: big.NewInt(time.Now().Unix())},
+		Timestamp:   time.Now().UnixMilli(),
 	}
 
 	fmt.Println("Signing and posting order...")
