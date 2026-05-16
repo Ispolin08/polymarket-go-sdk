@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/GoPolymarket/polymarket-go-sdk/pkg/auth"
-	"github.com/GoPolymarket/polymarket-go-sdk/pkg/clob/clobtypes"
-	"github.com/GoPolymarket/polymarket-go-sdk/pkg/transport"
+	"github.com/GoPolymarket/polymarket-go-sdk/v2/pkg/auth"
+	"github.com/GoPolymarket/polymarket-go-sdk/v2/pkg/clob/clobtypes"
+	"github.com/GoPolymarket/polymarket-go-sdk/v2/pkg/transport"
 )
 
 type headerCaptureDoer struct {
@@ -92,7 +92,7 @@ func TestAccountMethods(t *testing.T) {
 		}
 		client := &clientImpl{httpClient: transport.NewClient(doer, "http://example")}
 		resp, err := client.UserEarnings(ctx, &clobtypes.UserEarningsRequest{Date: "2025-01-01"})
-		if err != nil || len(resp.Data) != 1 || resp.Data[0].Earnings != "10" {
+		if err != nil || len(resp.Data) != 1 || float64(resp.Data[0].Earnings) != 10 {
 			t.Errorf("UserEarnings failed: %v", err)
 		}
 	})

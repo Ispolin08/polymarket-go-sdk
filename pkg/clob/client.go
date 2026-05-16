@@ -6,12 +6,12 @@ import (
 	"context"
 	"time"
 
-	"github.com/GoPolymarket/polymarket-go-sdk/pkg/auth"
-	"github.com/GoPolymarket/polymarket-go-sdk/pkg/clob/clobtypes"
-	"github.com/GoPolymarket/polymarket-go-sdk/pkg/clob/heartbeat"
-	"github.com/GoPolymarket/polymarket-go-sdk/pkg/clob/rfq"
-	"github.com/GoPolymarket/polymarket-go-sdk/pkg/clob/ws"
-	"github.com/GoPolymarket/polymarket-go-sdk/pkg/types"
+	"github.com/GoPolymarket/polymarket-go-sdk/v2/pkg/auth"
+	"github.com/GoPolymarket/polymarket-go-sdk/v2/pkg/clob/clobtypes"
+	"github.com/GoPolymarket/polymarket-go-sdk/v2/pkg/clob/heartbeat"
+	"github.com/GoPolymarket/polymarket-go-sdk/v2/pkg/clob/rfq"
+	"github.com/GoPolymarket/polymarket-go-sdk/v2/pkg/clob/ws"
+	"github.com/GoPolymarket/polymarket-go-sdk/v2/pkg/types"
 )
 
 // Client defines the primary interface for interacting with the Polymarket CLOB.
@@ -68,6 +68,8 @@ type Client interface {
 	Markets(ctx context.Context, req *clobtypes.MarketsRequest) (clobtypes.MarketsResponse, error)
 	// MarketsAll automatically iterates through all pages to retrieve all available markets.
 	MarketsAll(ctx context.Context, req *clobtypes.MarketsRequest) ([]clobtypes.Market, error)
+	// MarketsKeyset retrieves a cursor-based paginated list of markets using keyset pagination.
+	MarketsKeyset(ctx context.Context, req *clobtypes.MarketsRequest) (clobtypes.MarketsResponse, error)
 	// Market retrieves detailed information for a single market by its ID.
 	Market(ctx context.Context, id string) (clobtypes.MarketResponse, error)
 	// SimplifiedMarkets retrieves a simplified view of available markets.

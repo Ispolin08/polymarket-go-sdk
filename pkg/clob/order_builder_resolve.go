@@ -10,8 +10,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/shopspring/decimal"
 
-	"github.com/GoPolymarket/polymarket-go-sdk/pkg/auth"
-	"github.com/GoPolymarket/polymarket-go-sdk/pkg/clob/clobtypes"
+	"github.com/GoPolymarket/polymarket-go-sdk/v2/pkg/auth"
+	"github.com/GoPolymarket/polymarket-go-sdk/v2/pkg/clob/clobtypes"
 )
 
 func (b *OrderBuilder) resolveTickSize(ctx context.Context, tokenID string) (decimal.Decimal, error) {
@@ -45,42 +45,6 @@ func (b *OrderBuilder) resolveTickSize(ctx context.Context, tokenID string) (dec
 		return *override, nil
 	}
 	return decimal.Decimal{}, fmt.Errorf("tick size is required (set TickSize or provide a client)")
-}
-
-func (b *OrderBuilder) resolveFeeRateBps(ctx context.Context, tokenID string) (int64, error) {
-	userFee, err := parseFeeRateBps(b.feeRateBps)
-	if err != nil {
-		return 0, err
-	}
-
-	if !clientHasTransport(b.client) {
-		return userFee, nil
-	}
-
-	resp, err := b.client.FeeRate(ctx, &clobtypes.FeeRateRequest{TokenID: tokenID})
-	if err != nil {
-		if userFee > 0 {
-			return userFee, nil
-		}
-		return 0, fmt.Errorf("fee rate lookup failed: %w", err)
-	}
-
-	marketFee := int64(resp.BaseFee)
-	if marketFee == 0 && resp.FeeRate != "" {
-		parsed, err := decimal.NewFromString(resp.FeeRate)
-		if err != nil {
-			return 0, fmt.Errorf("invalid fee rate response: %w", err)
-		}
-		marketFee = parsed.IntPart()
-	}
-
-	if marketFee > 0 && userFee > 0 && userFee != marketFee {
-		return 0, fmt.Errorf("invalid fee rate %d, market fee rate is %d", userFee, marketFee)
-	}
-	if marketFee > 0 {
-		return marketFee, nil
-	}
-	return userFee, nil
 }
 
 func (b *OrderBuilder) resolveMarketPrice(ctx context.Context, side string, orderType clobtypes.OrderType, amount *marketAmount) (decimal.Decimal, error) {
@@ -172,17 +136,6 @@ func decimalPlaces(d decimal.Decimal) int32 {
 func toFixedDecimal(d decimal.Decimal) decimal.Decimal {
 	trimmed := d.Truncate(usdcDecimals)
 	return trimmed.Shift(usdcDecimals).Truncate(0)
-}
-
-func parseFeeRateBps(dec decimal.Decimal) (int64, error) {
-	if dec.Sign() <= 0 {
-		return 0, nil
-	}
-	intPart := dec.Truncate(0)
-	if !intPart.Equal(dec) {
-		return 0, fmt.Errorf("fee rate must be an integer bps value")
-	}
-	return intPart.IntPart(), nil
 }
 
 func generateSalt() (*big.Int, error) {

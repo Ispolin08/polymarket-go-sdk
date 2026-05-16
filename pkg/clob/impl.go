@@ -7,14 +7,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/GoPolymarket/polymarket-go-sdk/pkg/auth"
-	"github.com/GoPolymarket/polymarket-go-sdk/pkg/clob/cloberrors"
-	"github.com/GoPolymarket/polymarket-go-sdk/pkg/clob/clobtypes"
-	"github.com/GoPolymarket/polymarket-go-sdk/pkg/clob/heartbeat"
-	"github.com/GoPolymarket/polymarket-go-sdk/pkg/clob/rfq"
-	"github.com/GoPolymarket/polymarket-go-sdk/pkg/clob/ws"
-	"github.com/GoPolymarket/polymarket-go-sdk/pkg/transport"
-	"github.com/GoPolymarket/polymarket-go-sdk/pkg/types"
+	"github.com/GoPolymarket/polymarket-go-sdk/v2/pkg/auth"
+	"github.com/GoPolymarket/polymarket-go-sdk/v2/pkg/clob/cloberrors"
+	"github.com/GoPolymarket/polymarket-go-sdk/v2/pkg/clob/clobtypes"
+	"github.com/GoPolymarket/polymarket-go-sdk/v2/pkg/clob/heartbeat"
+	"github.com/GoPolymarket/polymarket-go-sdk/v2/pkg/clob/rfq"
+	"github.com/GoPolymarket/polymarket-go-sdk/v2/pkg/clob/ws"
+	"github.com/GoPolymarket/polymarket-go-sdk/v2/pkg/transport"
+	"github.com/GoPolymarket/polymarket-go-sdk/v2/pkg/types"
 )
 
 // clientImpl implements the Client interface.
@@ -412,12 +412,17 @@ func (h *healthResponse) UnmarshalJSON(data []byte) error {
 }
 
 func (c *clientImpl) Time(ctx context.Context) (clobtypes.TimeResponse, error) {
-	var ts int64
-	err := c.httpClient.Get(ctx, "/time", nil, &ts)
+	var resp clobtypes.TimeResponse
+	err := c.httpClient.Get(ctx, "/time", nil, &resp)
 	if err != nil {
+		// Fallback: API may return a plain integer instead of an object
+		var ts int64
+		if err2 := c.httpClient.Get(ctx, "/time", nil, &ts); err2 == nil {
+			return clobtypes.TimeResponse{Timestamp: ts}, nil
+		}
 		return clobtypes.TimeResponse{}, err
 	}
-	return clobtypes.TimeResponse{Timestamp: ts}, nil
+	return resp, nil
 }
 
 func (c *clientImpl) Geoblock(ctx context.Context) (clobtypes.GeoblockResponse, error) {

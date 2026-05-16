@@ -9,10 +9,10 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/shopspring/decimal"
 
-	"github.com/GoPolymarket/polymarket-go-sdk/pkg/auth"
-	"github.com/GoPolymarket/polymarket-go-sdk/pkg/clob/clobtypes"
-	"github.com/GoPolymarket/polymarket-go-sdk/pkg/transport"
-	"github.com/GoPolymarket/polymarket-go-sdk/pkg/types"
+	"github.com/GoPolymarket/polymarket-go-sdk/v2/pkg/auth"
+	"github.com/GoPolymarket/polymarket-go-sdk/v2/pkg/clob/clobtypes"
+	"github.com/GoPolymarket/polymarket-go-sdk/v2/pkg/transport"
+	"github.com/GoPolymarket/polymarket-go-sdk/v2/pkg/types"
 )
 
 func TestOrderManagementMethods(t *testing.T) {
@@ -219,10 +219,7 @@ func TestSignOrderDefaults(t *testing.T) {
 		TokenID:     types.U256{Int: big.NewInt(1)},
 		MakerAmount: decimal.NewFromInt(10),
 		TakerAmount: decimal.NewFromInt(5),
-		FeeRateBps:  decimal.NewFromInt(0),
-		Nonce:       types.U256{Int: big.NewInt(1)},
 		Expiration:  types.U256{Int: big.NewInt(0)},
-		Taker:       common.Address{},
 		Signer:      signer.Address(),
 	}
 

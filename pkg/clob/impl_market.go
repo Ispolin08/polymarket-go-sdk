@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"strconv"
 
-	"github.com/GoPolymarket/polymarket-go-sdk/pkg/clob/clobtypes"
+	"github.com/GoPolymarket/polymarket-go-sdk/v2/pkg/clob/clobtypes"
 )
 
 func (c *clientImpl) Markets(ctx context.Context, req *clobtypes.MarketsRequest) (clobtypes.MarketsResponse, error) {
@@ -58,6 +58,28 @@ func (c *clientImpl) MarketsAll(ctx context.Context, req *clobtypes.MarketsReque
 	}
 
 	return results, nil
+}
+
+func (c *clientImpl) MarketsKeyset(ctx context.Context, req *clobtypes.MarketsRequest) (clobtypes.MarketsResponse, error) {
+	q := url.Values{}
+	if req != nil {
+		if req.Limit > 0 {
+			q.Set("limit", strconv.Itoa(req.Limit))
+		}
+		if req.Cursor != "" {
+			q.Set("next_cursor", req.Cursor)
+		}
+		if req.Active != nil {
+			q.Set("active", strconv.FormatBool(*req.Active))
+		}
+		if req.AssetID != "" {
+			q.Set("asset_id", req.AssetID)
+		}
+	}
+
+	var resp clobtypes.MarketsResponse
+	err := c.httpClient.Get(ctx, "/markets/keyset", q, &resp)
+	return resp, mapError(err)
 }
 
 func (c *clientImpl) Market(ctx context.Context, id string) (clobtypes.MarketResponse, error) {

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/GoPolymarket/polymarket-go-sdk/pkg/types"
+	"github.com/GoPolymarket/polymarket-go-sdk/v2/pkg/types"
 )
 
 func TestOrderTypeConstants(t *testing.T) {
@@ -120,14 +120,11 @@ func TestSignedOrder_JSON(t *testing.T) {
 			Salt:        types.U256{},
 			Signer:      types.Address{},
 			Maker:       types.Address{},
-			Taker:       types.Address{},
 			TokenID:     types.U256{},
 			MakerAmount: types.Decimal{},
 			TakerAmount: types.Decimal{},
 			Expiration:  types.U256{},
 			Side:        "BUY",
-			FeeRateBps:  types.Decimal{},
-			Nonce:       types.U256{},
 		},
 		Signature: "0xsignature",
 		Owner:     "0xowner",
