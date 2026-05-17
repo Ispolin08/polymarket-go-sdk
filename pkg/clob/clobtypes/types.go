@@ -341,7 +341,7 @@ type (
 		MakerAddress string `json:"maker_address,omitempty"`
 		OrderType    string `json:"order_type,omitempty"`
 		Expiration   string `json:"expiration,omitempty"`
-		CreatedAt    int `json:"created_at,omitempty"`
+		CreatedAt    string `json:"created_at,omitempty"`
 		Timestamp    string `json:"timestamp,omitempty"`
 		Outcome      string `json:"outcome,omitempty"`
 	}
@@ -507,11 +507,11 @@ type (
 		MakerAmount   types.Decimal `json:"maker_amount"`
 		TakerAmount   types.Decimal `json:"taker_amount"`
 		Expiration    types.U256    `json:"expiration"`
-		Side          string        `json:"side"`                       // BUY/SELL
-		SignatureType *int          `json:"signature_type,omitempty"`   // 0=EOA, 1=Proxy, 2=Safe, 3=Poly1271
-		Timestamp     int64         `json:"timestamp,omitempty"`        // ms since epoch
-		Metadata      string        `json:"metadata,omitempty"`         // 0x-prefixed bytes32 hex
-		Builder       string        `json:"builder,omitempty"`          // 0x-prefixed bytes32 hex builder code
+		Side          string        `json:"side"`                     // BUY/SELL
+		SignatureType *int          `json:"signature_type,omitempty"` // 0=EOA, 1=Proxy, 2=Safe, 3=Poly1271
+		Timestamp     int64         `json:"timestamp,omitempty"`      // ms since epoch
+		Metadata      string        `json:"metadata,omitempty"`       // 0x-prefixed bytes32 hex
+		Builder       string        `json:"builder,omitempty"`        // 0x-prefixed bytes32 hex builder code
 	}
 
 	PriceHistoryPoint struct {
