@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/GoPolymarket/polymarket-go-sdk/v2/pkg/auth"
 	"github.com/GoPolymarket/polymarket-go-sdk/v2/pkg/clob/clobtypes"
@@ -72,7 +73,7 @@ func signOrderWithCreds(signer auth.Signer, apiKey *auth.APIKey, order *clobtype
 		return nil, fmt.Errorf("order side must be BUY or SELL, got %q", order.Side)
 	}
 	order.Side = side
-	if order.TokenID.Int == nil || order.TokenID.Int.Sign() == 0 {
+	if order.TokenID.Int == nil || order.TokenID.Sign() == 0 {
 		return nil, fmt.Errorf("token_id is required and must be non-zero")
 	}
 	if order.MakerAmount.BigInt() == nil || order.MakerAmount.BigInt().Sign() <= 0 {
@@ -113,6 +114,53 @@ func signOrderWithCreds(signer auth.Signer, apiKey *auth.APIKey, order *clobtype
 		return nil, fmt.Errorf("maker address cannot be zero; ensure signer is properly initialized")
 	}
 
+	sideInt := 0
+	if side == "SELL" {
+		sideInt = 1
+	}
+
+	if order.Salt.Int == nil || order.Salt.Sign() == 0 {
+		var salt *big.Int
+		var err error
+		if saltGen != nil {
+			salt, err = saltGen()
+		} else {
+			salt, err = generateSalt()
+		}
+		if err != nil {
+			return nil, err
+		}
+		order.Salt = types.U256{Int: salt}
+	}
+
+	if sigTypeVal == int(auth.SignaturePoly1271) {
+		if order.Signer == (types.Address{}) || order.Signer == signer.Address() {
+			order.Signer = order.Maker
+		}
+		if order.Timestamp == 0 {
+			order.Timestamp = time.Now().UnixMilli()
+		}
+		sig, err := signPoly1271Order(signer, order)
+		if err != nil {
+			return nil, fmt.Errorf("sign POLY_1271 order: %w", err)
+		}
+
+		owner := apiKey.Key
+		if owner == "" {
+			owner = signer.Address().String()
+		}
+
+		return &clobtypes.SignedOrder{
+			Order:     *order,
+			Signature: sig,
+			Owner:     owner,
+		}, nil
+	}
+
+	if order.Signer == (types.Address{}) {
+		order.Signer = signer.Address()
+	}
+
 	domain := &apitypes.TypedDataDomain{
 		Name:              "Polymarket CTF Exchange",
 		Version:           "2",
@@ -142,37 +190,16 @@ func signOrderWithCreds(signer auth.Signer, apiKey *auth.APIKey, order *clobtype
 		},
 	}
 
-	sideInt := 0
-	if side == "SELL" {
-		sideInt = 1
-	}
-
-	if order.Salt.Int == nil || order.Salt.Int.Sign() == 0 {
-		var salt *big.Int
-		var err error
-		if saltGen != nil {
-			salt, err = saltGen()
-		} else {
-			salt, err = generateSalt()
-		}
-		if err != nil {
-			return nil, err
-		}
-		order.Salt = types.U256{Int: salt}
-	}
-
-	timestamp := order.Timestamp
-
 	message := apitypes.TypedDataMessage{
 		"salt":          (*math.HexOrDecimal256)(order.Salt.Int),
 		"maker":         order.Maker.String(),
-		"signer":        signer.Address().String(),
+		"signer":        order.Signer.String(),
 		"tokenId":       (*math.HexOrDecimal256)(order.TokenID.Int),
 		"makerAmount":   (*math.HexOrDecimal256)(order.MakerAmount.BigInt()),
 		"takerAmount":   (*math.HexOrDecimal256)(order.TakerAmount.BigInt()),
 		"side":          (*math.HexOrDecimal256)(big.NewInt(int64(sideInt))),
 		"signatureType": (*math.HexOrDecimal256)(big.NewInt(int64(sigTypeVal))),
-		"timestamp":     (*math.HexOrDecimal256)(big.NewInt(timestamp)),
+		"timestamp":     (*math.HexOrDecimal256)(big.NewInt(order.Timestamp)),
 		"metadata":      padBytes32(order.Metadata),
 		"builder":       padBytes32(order.Builder),
 	}
