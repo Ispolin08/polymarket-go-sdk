@@ -398,7 +398,7 @@ func buildBuilderHeadersRemote(ctx context.Context, remote *BuilderRemoteConfig,
 	if err != nil {
 		return nil, fmt.Errorf("builder request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return nil, fmt.Errorf("builder signer error: status %d", resp.StatusCode)
@@ -518,5 +518,20 @@ func (s *PrivateKeySigner) SignTypedData(domain *apitypes.TypedDataDomain, types
 		signature[64] += 27
 	}
 
+	return signature, nil
+}
+
+// SignDigest signs a 32-byte digest with the local private key.
+func (s *PrivateKeySigner) SignDigest(digest []byte) ([]byte, error) {
+	if len(digest) != 32 {
+		return nil, fmt.Errorf("digest must be 32 bytes, got %d", len(digest))
+	}
+	signature, err := crypto.Sign(digest, s.key)
+	if err != nil {
+		return nil, fmt.Errorf("failed to sign hash: %w", err)
+	}
+	if signature[64] < 27 {
+		signature[64] += 27
+	}
 	return signature, nil
 }
